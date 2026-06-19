@@ -98,6 +98,17 @@ curl -fsS --retry 3 https://<healthchecks-host>/ping/<check-uuid>
 curl -fsS --retry 3 https://<healthchecks-host>/ping/<check-uuid>/fail
 ```
 
+Every check's Description field states what it monitors, where the job runs
+from, and what to do if it fires.
+
+Every check uses three tags:
+- `plane:monitoring` or `plane:application` — which plane the job runs on.
+  Combined with `config.md`'s host table, this is the access surface.
+- `type:cron` or `type:heartbeat` — whether this check expects a job to run
+  and ping once on completion, or a long-running process pinging on a steady
+  interval to prove it's alive.
+- `origin:<name>` — which project or service this check belongs to.
+
 No exceptions. Silence is not success.
 
 ---
