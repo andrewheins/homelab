@@ -82,7 +82,7 @@ to version control.
 
 ## 5. Integration rules
 
-Every service and application on this network follows all four rules.
+Every service and application on this network follows all five rules.
 Exceptions require explicit justification documented here.
 
 ### Rule 1 — All scheduled jobs register with Healthchecks
@@ -146,6 +146,47 @@ exchange happens via API, not shared schema.
 
 ---
 
+### Rule 5 — Default to containerization
+
+Every service and application runs in a container unless this rule names an
+exception. Containerization is the default, for reproducibility, dependency
+isolation, and the ability to rebuild a service on new hardware from its
+definition rather than from memory.
+
+This rule applies differently depending on what's being deployed:
+
+**Projects** — things written and maintained as part of this network (custom
+applications, workflow definitions, anything with logic that may change or
+move between hosts). Each project lives in its own repo, with an `AGENTS.md`
+referencing this contract, a `docker-compose.yml`, and an `.env.example`
+declaring required configuration keys. Real values go in a local `.env`
+(gitignored, populated from `config.md`). A project repo exists because
+something else — an agent, a future host, a future maintainer — genuinely
+needs to read it.
+
+**Services** — third-party software deployed as-is, with no custom logic
+(Healthchecks, ntfy, and similar). These need a `docker-compose.yml` and `.env`
+on the single host that runs them — nothing more. No repo, no remote, no sync
+job. A service has exactly one consumer, the host it runs on; there is no
+second reader to distribute to, so distribution machinery solves a problem
+that doesn't exist here. Local `git init` with no remote is fine if history is
+wanted. Reproducibility comes from the file existing on disk and the image
+being repullable, not from a sync pipeline.
+
+**Exception — GPU-accelerated inference on Apple Silicon.** Container runtimes
+on Apple Silicon cannot access the GPU; a containerized inference engine
+silently falls back to CPU-only execution, at a severe performance cost. Any
+service performing Metal-accelerated inference runs natively on the host.
+Services that merely call such an engine over HTTP (rather than performing
+inference themselves) carry no such restriction and are containerized normally.
+
+**Soft exception — one-shot scheduled scripts.** A short-lived, cron-triggered
+script with no persistent process and nothing to isolate may remain a native
+host script rather than a container. Judgment call, not a rule: containerize if
+it earns its keep, skip it if it's ceremony.
+
+---
+
 ## 6. Adding a service
 
 Before building, answer each question and update this document:
@@ -158,6 +199,11 @@ Before building, answer each question and update this document:
 4. **Produces persistent data?** Declare its Postgres database name here before
    writing the first table.
 5. **Callable by other services?** Add it to the service registry in §4.
+6. **Project or service?** Custom logic, may move hosts, something else needs
+   to read it → project: its own repo, `AGENTS.md`, `docker-compose.yml`,
+   `.env.example`. Third-party software deployed as-is → service: `docker-
+   compose.yml` and `.env` on the host, no repo required.
+7. **Apple Silicon GPU inference?** Run natively and note the exception here.
 
 ---
 
