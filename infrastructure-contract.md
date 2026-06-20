@@ -2,7 +2,8 @@
 
 *Drop this into any agent context, project, or design conversation. All services
 on this network integrate according to the rules below. Update this document before
-changing any integration pattern.*
+changing any integration pattern. See `session-behavior.md` for how this plays out
+per-session — what to read before acting and what to check before ending one.*
 
 ---
 

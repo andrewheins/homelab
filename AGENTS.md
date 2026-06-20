@@ -86,11 +86,26 @@ change the actual systems to match it** — not the other way around. The
 contract is the intended state; reality should be chasing it, not the
 reverse.
 
+`config.md` is the deliberate exception — see `session-behavior.md` §3 for
+why it runs in the opposite direction.
+
 ---
 
-## 7. What this file is not
+## 7. Session behavior
+
+How an agent session should start and end — what to read first, what
+checklist to produce after, and why `config.md` updates stay human-applied
+rather than automated — is its own document: `session-behavior.md`. It's
+cross-cutting (applies regardless of which project a session touches) and
+referenced from each project's own `AGENTS.md`, not duplicated into any of
+them.
+
+---
+
+## 8. What this file is not
 
 Not a style guide for code. Not a contributor onboarding doc. Not a
 description of what any individual document currently says — read the
 documents themselves for that. This file only governs what's allowed to go
-into this repo and how it should read once it's there.
+into this repo and how it should read once it's there. Session behavior
+lives in `session-behavior.md` (§7), not here.
