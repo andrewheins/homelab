@@ -158,44 +158,65 @@ exchange happens via API, not shared schema.
 
 ---
 
-### Rule 5 — Default to containerization
+### Rule 5 — Containerize once a change to its own code no longer requires a rebuild to take effect
 
-Every service and application runs in a container unless this rule names an
-exception. Containerization is the default, for reproducibility, dependency
-isolation, and the ability to rebuild a service on new hardware from its
-definition rather than from memory.
+The deciding question is mechanical, not a label: **does changing this
+thing's behavior require rebuilding its container image?** If yes, native
+hosting until that stops being true. If no, containerize — regardless of
+how often the thing changes.
 
-This rule applies differently depending on what's being deployed:
+This means *rate of change* and *containerization* are independent questions.
+Data riding on top of a stable engine — n8n workflow definitions, Postgres
+table contents, application config — can change hourly with zero rebuild
+cost, because the container never has to be rebuilt for that data to take
+effect. The engine underneath stays exactly as stable as it already is. What
+actually drives the rebuild cost is *source code whose own changes require a
+new image* — and that's a property of what's being actively written, not of
+what kind of software it is.
 
-**Projects** — things written and maintained as part of this network (custom
-applications, workflow definitions, anything with logic that may change or
-move between hosts). Each project lives in its own repo, with an `AGENTS.md`
-referencing this contract, a `docker-compose.yml`, and an `.env.example`
-declaring required configuration keys. Real values go in a local `.env`
-(gitignored, populated from `config.md`). A project repo exists because
-something else — an agent, a future host, a future maintainer — genuinely
-needs to read it.
+In practice, this sorts into two situations:
 
-**Services** — third-party software deployed as-is, with no custom logic
-(Healthchecks, ntfy, and similar). These need a `docker-compose.yml` and `.env`
-on the single host that runs them — nothing more. No repo, no remote, no sync
-job. A service has exactly one consumer, the host it runs on; there is no
-second reader to distribute to, so distribution machinery solves a problem
-that doesn't exist here. Local `git init` with no remote is fine if history is
-wanted. Reproducibility comes from the file existing on disk and the image
-being repullable, not from a sync pipeline.
+**Code you are actively writing, where a change means rebuilding the image.**
+Native/systemd while this is true. Containerizing here multiplies iteration
+friction by every single change — image rebuild plus container restart, in
+place of editing a file and a `systemctl restart` (or, for many stacks,
+nothing at all). Once the project reaches a release that holds for a real
+stretch without needing a code change — not "I haven't gotten back to it,"
+genuinely stable — move it to a container. The reproducibility benefit
+(rebuild this exactly, on new hardware, from its definition rather than from
+memory) starts paying rent exactly when you stop paying the rebuild-friction
+cost on every edit.
 
-**Exception — GPU-accelerated inference on Apple Silicon.** Container runtimes
-on Apple Silicon cannot access the GPU; a containerized inference engine
-silently falls back to CPU-only execution, at a severe performance cost. Any
-service performing Metal-accelerated inference runs natively on the host.
-Services that merely call such an engine over HTTP (rather than performing
-inference themselves) carry no such restriction and are containerized normally.
+**Everything else: third-party software you didn't write, and your own
+projects once stable.** Containerize by default. This includes services
+whose configuration changes constantly (n8n's workflows, a database's rows) —
+none of that requires touching the image, so containerization costs nothing
+here and still buys the reproducibility win.
+
+A project, while in the actively-rebuilding-the-image phase, lives in its own
+repo with an `AGENTS.md` referencing this contract (see `AGENTS.template.md`),
+a `docker-compose.yml`, and an `.env.example` declaring required configuration
+keys — written in advance so the move to containerized hosting, once it
+stabilizes, is a deployment change, not a redesign. Real values go in a local
+`.env` (gitignored, populated from `config.md`).
+
+Third-party software deployed as-is (Healthchecks, ntfy, n8n, Postgres, and
+similar) needs only a `docker-compose.yml` and `.env` on the host that runs
+it — no repo, no remote, no sync job. It has exactly one consumer, the host
+it runs on; there's no second reader to distribute to.
+
+**Exception — GPU-accelerated inference on Apple Silicon.** Container
+runtimes on Apple Silicon cannot access the GPU; a containerized inference
+engine silently falls back to CPU-only execution, at a severe performance
+cost. Any service performing Metal-accelerated inference runs natively on
+the host regardless of its development phase. Services that merely call such
+an engine over HTTP (rather than performing inference themselves) carry no
+such restriction and follow the rule above normally.
 
 **Soft exception — one-shot scheduled scripts.** A short-lived, cron-triggered
 script with no persistent process and nothing to isolate may remain a native
-host script rather than a container. Judgment call, not a rule: containerize if
-it earns its keep, skip it if it's ceremony.
+host script even once stable. Judgment call, not a rule: containerize if it
+earns its keep, skip it if it's ceremony.
 
 ---
 
@@ -211,10 +232,11 @@ Before building, answer each question and update this document:
 4. **Produces persistent data?** Declare its Postgres database name here before
    writing the first table.
 5. **Callable by other services?** Add it to the service registry in §4.
-6. **Project or service?** Custom logic, may move hosts, something else needs
-   to read it → project: its own repo, `AGENTS.md`, `docker-compose.yml`,
-   `.env.example`. Third-party software deployed as-is → service: `docker-
-   compose.yml` and `.env` on the host, no repo required.
+6. **Does changing it require rebuilding its container image?** If yes —
+   you're actively writing the code — native/systemd until it stabilizes,
+   with the repo/AGENTS.md/compose scaffolding from §5 Rule 5 in place ahead
+   of that move. If no — third-party, or your own code once stable —
+   containerize now.
 7. **Apple Silicon GPU inference?** Run natively and note the exception here.
 
 ---
