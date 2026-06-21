@@ -194,11 +194,13 @@ none of that requires touching the image, so containerization costs nothing
 here and still buys the reproducibility win.
 
 A project, while in the actively-rebuilding-the-image phase, lives in its own
-repo with an `AGENTS.md` referencing this contract (see `AGENTS.template.md`),
-a `docker-compose.yml`, and an `.env.example` declaring required configuration
-keys — written in advance so the move to containerized hosting, once it
-stabilizes, is a deployment change, not a redesign. Real values go in a local
-`.env` (gitignored, populated from `config.md`).
+repo with an `AGENTS.md` referencing this contract (see `AGENTS.template.md`)
+and an `.env.example` declaring required configuration keys — the
+configuration contract, which doesn't depend on hosting mechanism and won't
+go stale while the code is still moving. Real values go in a local `.env`
+(gitignored, populated from `config.md`). Write the `docker-compose.yml` when
+you actually containerize, against the stable thing as it really is — not
+earlier, speculatively, against a target that's still moving.
 
 Third-party software deployed as-is (Healthchecks, ntfy, n8n, Postgres, and
 similar) needs only a `docker-compose.yml` and `.env` on the host that runs
