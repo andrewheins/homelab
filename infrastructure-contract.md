@@ -202,6 +202,13 @@ go stale while the code is still moving. Real values go in a local `.env`
 you actually containerize, against the stable thing as it really is — not
 earlier, speculatively, against a target that's still moving.
 
+**Native-phase deployment.** Develop on the workstation; a `deploy.sh` in the
+project syncs the folder to the target host, excluding dependencies, `.env`,
+and other local-only files. The host runs it under systemd. Periodic work is
+a oneshot service plus a timer, and the service's `ExecStartPost` pings
+Healthchecks (Rule 1) — the job script does not ping for itself. Containerize
+when the code stabilizes, per above.
+
 Third-party software deployed as-is (Healthchecks, ntfy, n8n, Postgres, and
 similar) needs only a `docker-compose.yml` and `.env` on the host that runs
 it — no repo, no remote, no sync job. It has exactly one consumer, the host
